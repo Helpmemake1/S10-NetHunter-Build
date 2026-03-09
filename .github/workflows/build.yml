@@ -17,7 +17,8 @@ jobs:
       - name: Clone V0lk3n's Patched Drivers (The Frankenstein Transplant)
         run: |
           mkdir -p s10-kernel/drivers/net/wireless/
-          git clone https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820.git v0lk3n_repo
+          # We added --recurse-submodules right here!
+          git clone --recurse-submodules https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820.git v0lk3n_repo
           rm -rf s10-kernel/drivers/net/wireless/realtek
           cp -r v0lk3n_repo/drivers/net/wireless/realtek s10-kernel/drivers/net/wireless/
           cp -r v0lk3n_repo/arch/arm64/configs/* s10-kernel/arch/arm64/configs/
