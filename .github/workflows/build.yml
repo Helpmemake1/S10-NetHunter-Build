@@ -17,7 +17,6 @@ jobs:
       - name: Clone V0lk3n's Patched Drivers (The Frankenstein Transplant)
         run: |
           mkdir -p s10-kernel/drivers/net/wireless/
-          # We added --recurse-submodules right here!
           git clone --recurse-submodules https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820.git v0lk3n_repo
           rm -rf s10-kernel/drivers/net/wireless/realtek
           cp -r v0lk3n_repo/drivers/net/wireless/realtek s10-kernel/drivers/net/wireless/
@@ -32,6 +31,10 @@ jobs:
         run: |
           cd s10-kernel/kali-nethunter-kernel-builder
           cp ../../v0lk3n_repo/nh_files/local.config .
+          
+          # THE FIX: Give the blind script exactly the filename it is looking for!
+          cp ../arch/arm64/configs/nethunter_beyond1lte_defconfig ../arch/arm64/configs/nethunter_defconfig
+          
           echo -e "0\nT\nn\n" | ./build.sh
 
       - name: Upload Kernel Zip
