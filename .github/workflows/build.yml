@@ -1,0 +1,41 @@
+name: Compile NetHunter Kernel (S10 Exynos9820)
+on:
+  workflow_dispatch: # This adds a manual "Run workflow" button!
+
+jobs:
+  build-kernel:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python2 python3
+
+      - name: Clone LineageOS 23.2 Kernel Source
+        # REPLACE THE LINK BELOW WITH YOUR ACTUAL LINEAGE 23.2 REPO LINK
+        run: git clone --depth=1 https://github.com/LineageOS/android_kernel_samsung_exynos9820
+
+      - name: Clone V0lk3n's Patched Drivers (The Frankenstein Transplant)
+        run: |
+          git clone https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820.git v0lk3n_repo
+          rm -rf s10-kernel/drivers/net/wireless/realtek
+          cp -r v0lk3n_repo/drivers/net/wireless/realtek s10-kernel/drivers/net/wireless/
+
+      - name: Setup Kali Kernel Builder
+        run: |
+          git clone https://gitlab.com/kalilinux/nethunter/build-scripts/kali-nethunter-kernel-builder.git
+          cp -r kali-nethunter-kernel-builder/* s10-kernel/
+
+      - name: Run Automated Build
+        run: |
+          cd s10-kernel
+          # We use 'echo' to automatically answer the builder script's prompts:
+          # 0 = Clean, T = Test Build, n = Do not edit config
+          echo -e "0\nT\nn\n" | ./build.sh
+
+      - name: Upload Kernel Zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetHunter-Kernel-S10
+          path: s10-kernel/output/*.zip
+          
