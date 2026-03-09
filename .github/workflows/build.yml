@@ -30,8 +30,13 @@ jobs:
       - name: Run Automated Build
         run: |
           cd s10-kernel
-          # We use 'echo' to automatically answer the builder script's prompts:
-          # 0 = Clean, T = Test Build, n = Do not edit config
+          # 1. Steal V0lk3n's config cheat sheet to bypass the setup wizard
+          cp ../v0lk3n_repo/nh_files/local.config .
+          
+          # 2. Force the config to use the GitHub server's exact folder path
+          sed -i "s|KERNEL_DIR=.*|KERNEL_DIR=$PWD|g" local.config
+          
+          # 3. Run the builder! (0 = Clean, T = Test Build, n = skip config edit)
           echo -e "0\nT\nn\n" | ./build.sh
 
       - name: Upload Kernel Zip
