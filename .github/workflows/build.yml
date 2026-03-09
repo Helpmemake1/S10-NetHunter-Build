@@ -1,6 +1,6 @@
 name: Compile NetHunter Kernel (S10 Exynos9820)
 on:
-  workflow_dispatch: # This adds a manual "Run workflow" button!
+  workflow_dispatch:
 
 jobs:
   build-kernel:
@@ -12,36 +12,29 @@ jobs:
           sudo apt-get install -y git ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python2 python3
 
       - name: Clone LineageOS 23.2 Kernel Source
-        # REPLACE THE LINK BELOW WITH YOUR ACTUAL LINEAGE 23.2 REPO LINK
-        run: git clone --depth=1 https://github.com/LineageOS/android_kernel_samsung_exynos9820
+        run: git clone --depth=1 https://github.com/LineageOS/android_kernel_samsung_exynos9820 s10-kernel
 
       - name: Clone V0lk3n's Patched Drivers (The Frankenstein Transplant)
         run: |
-         mkdir -p s10-kernel/drivers/net/wireless/
+          mkdir -p s10-kernel/drivers/net/wireless/
           git clone https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820.git v0lk3n_repo
           rm -rf s10-kernel/drivers/net/wireless/realtek
           cp -r v0lk3n_repo/drivers/net/wireless/realtek s10-kernel/drivers/net/wireless/
+          cp -r v0lk3n_repo/arch/arm64/configs/* s10-kernel/arch/arm64/configs/
 
       - name: Setup Kali Kernel Builder
         run: |
           git clone https://gitlab.com/kalilinux/nethunter/build-scripts/kali-nethunter-kernel-builder.git
-          cp -r kali-nethunter-kernel-builder/* s10-kernel/
+          mv kali-nethunter-kernel-builder s10-kernel/
 
       - name: Run Automated Build
         run: |
-          cd s10-kernel
-          # 1. Steal V0lk3n's config cheat sheet to bypass the setup wizard
-          cp ../v0lk3n_repo/nh_files/local.config .
-          
-          # 2. Force the config to use the GitHub server's exact folder path
-          sed -i "s|KERNEL_DIR=.*|KERNEL_DIR=$PWD|g" local.config
-          
-          # 3. Run the builder! (0 = Clean, T = Test Build, n = skip config edit)
+          cd s10-kernel/kali-nethunter-kernel-builder
+          cp ../../v0lk3n_repo/nh_files/local.config .
           echo -e "0\nT\nn\n" | ./build.sh
 
       - name: Upload Kernel Zip
         uses: actions/upload-artifact@v4
         with:
           name: NetHunter-Kernel-S10
-          path: s10-kernel/output/*.zip
-          
+          path: s10-kernel/kali-nethunter-kernel-builder/output/*.zip
