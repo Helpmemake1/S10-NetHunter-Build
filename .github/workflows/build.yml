@@ -31,13 +31,16 @@ jobs:
           cp -r v0lk3n_repo/drivers/net/wireless/realtek s10-kernel/drivers/net/wireless/
           cp -r v0lk3n_repo/arch/arm64/configs/* s10-kernel/arch/arm64/configs/
 
-      - name: Patch Strict Compiler Errors
+      - name: Patch Strict Compiler Errors (The Mali Nuke)
         run: |
           echo "KBUILD_CFLAGS += -Wno-error" >> s10-kernel/Makefile
           echo "KBUILD_CFLAGS += -Wno-unknown-warning-option" >> s10-kernel/Makefile
           find s10-kernel/drivers/ -type f -name "Makefile" -exec sed -i 's/-Werror//g' {} +
           find s10-kernel/drivers/ -type f -name "Kbuild" -exec sed -i 's/-Werror//g' {} +
-          find s10-kernel/drivers/ -type f -name "Makefile" -exec sed -i 's/-Wno-unknown-warning-option//g' {} +
+          
+          # TARGETED STRIKE: Mali GPU folder hides flags. Nuke them from all files!
+          find s10-kernel/drivers/gpu/ -type f -exec sed -i 's/-Werror//g' {} +
+          find s10-kernel/drivers/gpu/ -type f -name "*.mk" -exec sed -i 's/-Werror//g' {} +
 
       - name: Setup Kali Kernel Builder
         run: |
@@ -50,11 +53,9 @@ jobs:
           cp ../../v0lk3n_repo/nh_files/local.config .
           cp ../arch/arm64/configs/nethunter_beyond1lte_defconfig ../arch/arm64/configs/nethunter_defconfig
           
-          # Run the build and log everything
           echo -e "0\nT\nn\n" | ./build.sh 2>&1 | tee build_log.txt
-          
-          # Extract the real errors into a tiny cheat sheet
           grep -i "error" build_log.txt | grep -v -i "warning" > crash_report.txt || true
+          cat crash_report.txt
 
       - name: Upload Results
         uses: actions/upload-artifact@v4
