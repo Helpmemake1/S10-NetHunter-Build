@@ -57,6 +57,6 @@ jobs:
         if: always()
         with:
           name: S10-Build-Results
-          path: |
-            s10-kernel/kali-nethunter-kernel-builder/output/*.zip
+          path: s10-kernel/kali-nethunter-kernel-builder/output/*.zip
           retention-days: 1
+
