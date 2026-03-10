@@ -1,4 +1,4 @@
-name: Compile NetHunter Kernel (S10 Exynos9820)
+name: Compile NetHunter Kernel (S10 Exynos9820 - LOS 23.2)
 on:
   workflow_dispatch:
 
@@ -21,7 +21,7 @@ jobs:
           mkdir linaro-armhf-5.5 && tar -xf linaro-armhf-5.5.tar.xz -C linaro-armhf-5.5 --strip-components=1
 
       - name: Clone LineageOS 23.2 Kernel Source
-        run: git clone --depth=1 https://github.com/LineageOS/android_kernel_samsung_exynos9820 s10-kernel
+        run: git clone --depth=1 https://github.com/LineageOS/android_kernel_samsung_exynos9820 -b lineage-23.2 s10-kernel
 
       - name: Clone V0lk3n's Patched Drivers
         run: |
@@ -37,8 +37,6 @@ jobs:
           echo "KBUILD_CFLAGS += -Wno-unknown-warning-option" >> s10-kernel/Makefile
           find s10-kernel/drivers/ -type f -name "Makefile" -exec sed -i 's/-Werror//g' {} +
           find s10-kernel/drivers/ -type f -name "Kbuild" -exec sed -i 's/-Werror//g' {} +
-          
-          # TARGETED STRIKE: Mali GPU folder hides flags. Nuke them from all files!
           find s10-kernel/drivers/gpu/ -type f -exec sed -i 's/-Werror//g' {} +
           find s10-kernel/drivers/gpu/ -type f -name "*.mk" -exec sed -i 's/-Werror//g' {} +
 
@@ -47,32 +45,18 @@ jobs:
           git clone https://gitlab.com/kalilinux/nethunter/build-scripts/kali-nethunter-kernel-builder.git
           mv kali-nethunter-kernel-builder s10-kernel/
 
-      - name: Run Automated Build & Catch Crashes
+      - name: Run Automated Build
         run: |
           cd s10-kernel/kali-nethunter-kernel-builder
           cp ../../v0lk3n_repo/nh_files/local.config .
           cp ../arch/arm64/configs/nethunter_beyond1lte_defconfig ../arch/arm64/configs/nethunter_defconfig
-          
           echo -e "0\nT\nn\n" | ./build.sh 2>&1 | tee build_log.txt
-          grep -i "error" build_log.txt | grep -v -i "warning" > crash_report.txt || true
-          cat crash_report.txt
 
-      - name: Upload Results
+      - name: Upload Finished Kernel
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: S10-Build-Results
           path: |
             s10-kernel/kali-nethunter-kernel-builder/output/*.zip
-            s10-kernel/kali-nethunter-kernel-builder/crash_report.txt
-
-      - name: Upload Results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: S10-Build-Results
-          path: |
-            s10-kernel/kali-nethunter-kernel-builder/output/*.zip
-            s10-kernel/kali-nethunter-kernel-builder/crash_report.txt
           retention-days: 1
-
