@@ -11,6 +11,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python2 python3
 
+      - name: Setup V0lk3n's Linaro 5.5 Toolchains
+        run: |
+          mkdir -p /home/runner/android/toolchains
+          cd /home/runner/android/toolchains
+          curl -LO https://kali.download/nethunter-images/toolchains/linaro-aarch64-5.5.tar.xz
+          curl -LO https://kali.download/nethunter-images/toolchains/linaro-armhf-5.5.tar.xz
+          mkdir linaro-aarch64-5.5 && tar -xf linaro-aarch64-5.5.tar.xz -C linaro-aarch64-5.5 --strip-components=1
+          mkdir linaro-armhf-5.5 && tar -xf linaro-armhf-5.5.tar.xz -C linaro-armhf-5.5 --strip-components=1
+
       - name: Clone LineageOS 23.2 Kernel Source
         run: git clone --depth=1 https://github.com/LineageOS/android_kernel_samsung_exynos9820 s10-kernel
 
@@ -42,3 +51,4 @@ jobs:
         with:
           name: NetHunter-Kernel-S10
           path: s10-kernel/kali-nethunter-kernel-builder/output/*.zip
+          
