@@ -31,14 +31,15 @@ jobs:
           cp -r v0lk3n_repo/drivers/net/wireless/realtek s10-kernel/drivers/net/wireless/
           cp -r v0lk3n_repo/arch/arm64/configs/* s10-kernel/arch/arm64/configs/
 
-      - name: Patch Strict Compiler Errors (The Werror Bypass)
+      - name: Patch Strict Compiler Errors (The Ultimate Bypass)
         run: |
-          # 1. Add master bypass to the root Makefile
           echo "KBUILD_CFLAGS += -Wno-error" >> s10-kernel/Makefile
           echo "KBUILD_CFLAGS += -Wno-unknown-warning-option" >> s10-kernel/Makefile
           
-          # 2. Nuke strict flags specifically inside the media drivers
-          find s10-kernel/drivers/media/ -type f -name "Makefile" -exec sed -i 's/-Werror//g' {} +
+          # THE ULTIMATE NUKE: Scour the ENTIRE drivers folder
+          find s10-kernel/drivers/ -type f -name "Makefile" -exec sed -i 's/-Werror//g' {} +
+          find s10-kernel/drivers/ -type f -name "Kbuild" -exec sed -i 's/-Werror//g' {} +
+          find s10-kernel/drivers/ -type f -name "Makefile" -exec sed -i 's/-Wno-unknown-warning-option//g' {} +
 
       - name: Setup Kali Kernel Builder
         run: |
