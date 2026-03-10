@@ -31,6 +31,15 @@ jobs:
           cp -r v0lk3n_repo/drivers/net/wireless/realtek s10-kernel/drivers/net/wireless/
           cp -r v0lk3n_repo/arch/arm64/configs/* s10-kernel/arch/arm64/configs/
 
+      - name: Patch Strict Compiler Errors (The Werror Bypass)
+        run: |
+          # 1. Add master bypass to the root Makefile
+          echo "KBUILD_CFLAGS += -Wno-error" >> s10-kernel/Makefile
+          echo "KBUILD_CFLAGS += -Wno-unknown-warning-option" >> s10-kernel/Makefile
+          
+          # 2. Nuke strict flags specifically inside the media drivers
+          find s10-kernel/drivers/media/ -type f -name "Makefile" -exec sed -i 's/-Werror//g' {} +
+
       - name: Setup Kali Kernel Builder
         run: |
           git clone https://gitlab.com/kalilinux/nethunter/build-scripts/kali-nethunter-kernel-builder.git
@@ -40,10 +49,7 @@ jobs:
         run: |
           cd s10-kernel/kali-nethunter-kernel-builder
           cp ../../v0lk3n_repo/nh_files/local.config .
-          
-          # THE FIX: Give the blind script exactly the filename it is looking for!
           cp ../arch/arm64/configs/nethunter_beyond1lte_defconfig ../arch/arm64/configs/nethunter_defconfig
-          
           echo -e "0\nT\nn\n" | ./build.sh
 
       - name: Upload Kernel Zip
@@ -51,4 +57,3 @@ jobs:
         with:
           name: NetHunter-Kernel-S10
           path: s10-kernel/kali-nethunter-kernel-builder/output/*.zip
-          
