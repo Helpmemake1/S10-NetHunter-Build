@@ -65,3 +65,14 @@ jobs:
           path: |
             s10-kernel/kali-nethunter-kernel-builder/output/*.zip
             s10-kernel/kali-nethunter-kernel-builder/crash_report.txt
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: S10-Build-Results
+          path: |
+            s10-kernel/kali-nethunter-kernel-builder/output/*.zip
+            s10-kernel/kali-nethunter-kernel-builder/crash_report.txt
+          retention-days: 1
+
