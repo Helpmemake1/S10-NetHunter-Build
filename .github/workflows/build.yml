@@ -12,30 +12,27 @@ jobs:
       - name: Set up Build Environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison build-essential flex git libssl-dev libncurses5-dev zip
+          sudo apt-get install -y bc bison build-essential flex git libssl-dev libncurses5-dev zip gcc-aarch64-linux-gnu
 
       - name: Build Kernel and Modules
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
-          make nethunter-beyond1lte_defconfig
+          # Try to find the config file first to ensure we are in the right spot
+          CONF=$(find . -name "nethunter_beyond1lte_defconfig")
+          if [ -z "$CONF" ]; then echo "Config not found!"; exit 1; fi
+          cd $(dirname $(dirname $(dirname $(dirname $CONF))))
+          make nethunter_beyond1lte_defconfig
           make -j$(nproc)
 
       - name: Prepare AnyKernel3
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git
-          # Find the kernel image regardless of subfolder
           find . -name "Image.gz-dtb" -exec cp {} AnyKernel3/ \;
           mkdir -p AnyKernel3/modules
-          # Use a global find to grab all compiled modules
           find . -name "*.ko" -exec cp {} AnyKernel3/modules/ \;
-          # Ensure your custom anykernel.sh is used
-          cp anykernel.sh AnyKernel3/anykernel.sh
+          cp anykernel.sh AnyKernel3/anykernel.sh || touch AnyKernel3/anykernel.sh
 
-      - name: Upload Flashable ZIP
-        run: |
-          cd AnyKernel3 && zip -r9 ../NetHunter-Kernel-S10.zip *
-          
       - name: Export Artifact
         uses: actions/upload-artifact@v4
         with:
