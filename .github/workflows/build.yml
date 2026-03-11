@@ -24,10 +24,12 @@ jobs:
       - name: Prepare AnyKernel3
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git
-          cp arch/arm64/boot/Image.gz-dtb AnyKernel3/
+          # Find the kernel image regardless of subfolder
+          find . -name "Image.gz-dtb" -exec cp {} AnyKernel3/ \;
           mkdir -p AnyKernel3/modules
+          # Use a global find to grab all compiled modules
           find . -name "*.ko" -exec cp {} AnyKernel3/modules/ \;
-          # Use your custom anykernel.sh
+          # Ensure your custom anykernel.sh is used
           cp anykernel.sh AnyKernel3/anykernel.sh
 
       - name: Upload Flashable ZIP
