@@ -18,7 +18,7 @@ jobs:
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
-          make exynos9820-beyond1lte_defconfig
+          make nethunter-beyond1lte_defconfig
           make -j$(nproc)
 
       - name: Prepare AnyKernel3
