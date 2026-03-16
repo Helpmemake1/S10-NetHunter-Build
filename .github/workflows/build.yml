@@ -18,62 +18,55 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm git zip gcc-aarch64-linux-gnu
 
-      - name: Inject NetHunter Drivers & Patches
+      - name: Configure Kernel
         run: |
-          # Clone v0lk3n source for drivers
-          git clone --depth 1 -b nethunter-lineage-23.0 https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820.git v0lk3n_src
+          export ARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-gnu-
           
-          # Inject HID and Wireless stacks
-          cp -r v0lk3n_src/drivers/usb/gadget/function/f_hid.c drivers/usb/gadget/function/ || true
-          cp -rf v0lk3n_src/net/wireless/* net/wireless/
+          # Use the verified config name from your previous successful start
+          make exynos9820-beyond0lte_defconfig
           
-          # Automatically find the config file (it might be beyond_defconfig or exynos9820_defconfig)
-          CONF_FILE=$(find arch/arm64/configs/ -name "*defconfig" | grep -iE "beyond|exynos9820" | head -n 1)
-          echo "FOUND_CONF=$CONF_FILE" >> $GITHUB_ENV
-          echo "Detected config: $CONF_FILE"
+          # --- PANDA PAU09 & ALFA SUPPORT ---
+          ./scripts/config --enable CONFIG_RT2X00
+          ./scripts/config --enable CONFIG_RT2800USB
+          ./scripts/config --enable CONFIG_RT2800USB_RT5572
+          ./scripts/config --enable CONFIG_ATH9K_HTC
+          ./scripts/config --enable CONFIG_CFG80211
+          ./scripts/config --enable CONFIG_MAC80211
           
-          # Apply security bypasses to the detected config
-          sed -i 's/CONFIG_CC_STACKPROTECTOR_STRONG=y/CONFIG_CC_STACKPROTECTOR_NONE=y/g' "$CONF_FILE"
-          echo "CONFIG_USB_F_HID=y" >> "$CONF_FILE"
-          echo "CONFIG_USB_CONFIGFS_F_HID=y" >> "$CONF_FILE"
+          # --- HID ATTACK SUPPORT ---
+          ./scripts/config --enable CONFIG_USB_F_HID
+          ./scripts/config --enable CONFIG_USB_CONFIGFS_F_HID
+          
+          # --- SECURITY BYPASS (CRITICAL) ---
+          ./scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
+          ./scripts/config --enable CONFIG_CC_STACKPROTECTOR_NONE
+          ./scripts/config --disable CONFIG_SAMSUNG_TUI
+          ./scripts/config --disable CONFIG_SECURITY_DEFENSE_SMAP
 
       - name: Build Kernel
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
-          
-          # Use the config found in the previous step
-          CONF_NAME=$(basename ${{ env.FOUND_CONF }})
-          make $CONF_NAME
-          
-          # Force Panda PAU09 and Alfa support
-          ./scripts/config --enable CONFIG_RT2X00
-          ./scripts/config --enable CONFIG_RT2800USB
-          ./scripts/config --enable CONFIG_RT2800USB_RT5572
-          ./scripts/config --enable CONFIG_ATH9K_HTC
-          
-          # Force HID
-          ./scripts/config --enable CONFIG_USB_F_HID
-          ./scripts/config --enable CONFIG_USB_CONFIGFS_F_HID
-          
-          # Samsung Security Stripping
-          ./scripts/config --disable CONFIG_SAMSUNG_TUI
-          ./scripts/config --disable CONFIG_SECURITY_DEFENSE_SMAP
-          
           make -j$(nproc) CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
 
       - name: Package with AnyKernel3
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git
-          cp arch/arm64/boot/Image.gz-dtb AnyKernel3/ || cp arch/arm64/boot/Image AnyKernel3/
+          # AnyKernel3 setup
+          if [ -f arch/arm64/boot/Image.gz-dtb ]; then
+            cp arch/arm64/boot/Image.gz-dtb AnyKernel3/
+          else
+            cp arch/arm64/boot/Image AnyKernel3/
+          fi
           cd AnyKernel3
           sed -i 's/device.name1=/device.name1=beyond1lte/g' anykernel.sh
           sed -i 's/device.name2=/device.name2=beyond1/g' anykernel.sh
-          zip -r ../NetHunter-Full-Arsenal-S10.zip *
+          zip -r ../NetHunter-S10-Kernel.zip *
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Full-NetHunter-Kernel
-          path: NetHunter-Full-Arsenal-S10.zip
-
+          name: S10-Kernel-Build
+          path: NetHunter-S10-Kernel.zip
+          
