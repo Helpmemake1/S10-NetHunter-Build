@@ -18,58 +18,64 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm git zip gcc-aarch64-linux-gnu
 
-      - name: Configure Kernel
+      - name: Configure & Patch Kernel
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           
+          # 1. Load the official S10 beyond1lte config
           make exynos9820-beyond0lte_defconfig
           
-          # --- STABLE NETWORKING STACK ---
-          ./scripts/config --enable CONFIG_CFG80211
+          # 2. FIX: Disable missing Samsung Security files (Tzar error fix)
+          ./scripts/config --disable CONFIG_TZDEV
+          ./scripts/config --disable CONFIG_SAMSUNG_TUI
+          ./scripts/config --disable CONFIG_SAMSUNG_TZ_DEPLOY_TZAR
+          ./scripts/config --disable CONFIG_TIMA
+          
+          # 3. ENABLE PANDA PAU09 (RT2800USB) & INJECTION
+          ./scripts/config --enable CONFIG_RT2X00
+          ./scripts/config --enable CONFIG_RT2800USB
+          ./scripts/config --enable CONFIG_RT2800USB_RT5572
+          ./scripts/config --enable CONFIG_ATH9K_HTC
           ./scripts/config --enable CONFIG_MAC80211
+          ./scripts/config --enable CONFIG_CFG80211
           
-          # --- PANDA PAU09 (RT2800USB) AS EXTERNAL MODULES ---
-          # We use 'm' for module to prevent the main Image from crashing
-          ./scripts/config --module CONFIG_RT2X00
-          ./scripts/config --module CONFIG_RT2800USB
-          ./scripts/config --module CONFIG_RT2800USB_RT5572
-          ./scripts/config --module CONFIG_ATH9K_HTC
-          
-          # --- HID & SECURITY ---
+          # 4. ENABLE HID ATTACKS (Keyboard/Mouse)
           ./scripts/config --enable CONFIG_USB_F_HID
+          ./scripts/config --enable CONFIG_USB_CONFIGFS_F_HID
+          
+          # 5. SECURITY BYPASS (Prevent Bootloops)
           ./scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
           ./scripts/config --enable CONFIG_CC_STACKPROTECTOR_NONE
-          ./scripts/config --disable CONFIG_SAMSUNG_TUI
           
+          # Sync new settings and auto-accept wireless defaults
           make olddefconfig
 
-      - name: Build Kernel and Modules
+      - name: Build Kernel
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
-          # Build the main kernel
+          # Build with Clang for maximum performance
           make -j$(nproc) CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
-          # Build the driver files separately
-          make -j$(nproc) modules CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
 
       - name: Package with AnyKernel3
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git
-          cp arch/arm64/boot/Image.gz-dtb AnyKernel3/ || cp arch/arm64/boot/Image AnyKernel3/
-          
-          # Create a modules folder and find the built Panda drivers
-          mkdir -p AnyKernel3/modules
-          find . -name "*.ko" -exec cp {} AnyKernel3/modules/ \;
-          
+          # Find the built image and put it in the zip folder
+          if [ -f arch/arm64/boot/Image.gz-dtb ]; then
+            cp arch/arm64/boot/Image.gz-dtb AnyKernel3/
+          else
+            cp arch/arm64/boot/Image AnyKernel3/
+          fi
           cd AnyKernel3
+          # Set correct device ID for S10 beyond1lte
           sed -i 's/device.name1=/device.name1=beyond1lte/g' anykernel.sh
           sed -i 's/device.name2=/device.name2=beyond1/g' anykernel.sh
-          zip -r ../S10-NetHunter-Kernel.zip *
+          zip -r ../NetHunter-S10-Full-Build.zip *
 
-      - name: Upload Artifact
+      - name: Upload Flashable Zip
         uses: actions/upload-artifact@v4
         with:
-          name: S10-Stable-Kernel
-          path: S10-NetHunter-Kernel.zip
+          name: S10-NetHunter-Kernel
+          path: NetHunter-S10-Full-Build.zip
           
