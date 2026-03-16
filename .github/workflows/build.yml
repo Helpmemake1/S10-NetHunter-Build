@@ -20,42 +20,43 @@ jobs:
 
       - name: Inject NetHunter Drivers & Patches
         run: |
-          # Create a temp folder for v0lk3n's code
+          # Clone v0lk3n source for drivers
           git clone --depth 1 -b nethunter-lineage-23.0 https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820.git v0lk3n_src
           
-          # 1. Inject HID Gadget Drivers (For Keyboard/Mouse Attacks)
+          # Inject HID and Wireless stacks
           cp -r v0lk3n_src/drivers/usb/gadget/function/f_hid.c drivers/usb/gadget/function/ || true
-          
-          # 2. Inject Wireless Injection Drivers (For Panda/Alfa)
-          # We copy the mac80211 and cfg80211 stacks which are patched for injection
           cp -rf v0lk3n_src/net/wireless/* net/wireless/
           
-          # 3. Apply the security bypass patches manually using sed (more reliable than 'patch')
-          sed -i 's/CONFIG_CC_STACKPROTECTOR_STRONG=y/CONFIG_CC_STACKPROTECTOR_NONE=y/g' arch/arm64/configs/exynos9820_defconfig
-          echo "CONFIG_USB_F_HID=y" >> arch/arm64/configs/exynos9820_defconfig
-          echo "CONFIG_USB_CONFIGFS_F_HID=y" >> arch/arm64/configs/exynos9820_defconfig
+          # Automatically find the config file (it might be beyond_defconfig or exynos9820_defconfig)
+          CONF_FILE=$(find arch/arm64/configs/ -name "*defconfig" | grep -iE "beyond|exynos9820" | head -n 1)
+          echo "FOUND_CONF=$CONF_FILE" >> $GITHUB_ENV
+          echo "Detected config: $CONF_FILE"
+          
+          # Apply security bypasses to the detected config
+          sed -i 's/CONFIG_CC_STACKPROTECTOR_STRONG=y/CONFIG_CC_STACKPROTECTOR_NONE=y/g' "$CONF_FILE"
+          echo "CONFIG_USB_F_HID=y" >> "$CONF_FILE"
+          echo "CONFIG_USB_CONFIGFS_F_HID=y" >> "$CONF_FILE"
 
       - name: Build Kernel
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           
-          make exynos9820_defconfig
+          # Use the config found in the previous step
+          CONF_NAME=$(basename ${{ env.FOUND_CONF }})
+          make $CONF_NAME
           
-          # Enable everything for the Panda PAU09 and Alfa
+          # Force Panda PAU09 and Alfa support
           ./scripts/config --enable CONFIG_RT2X00
           ./scripts/config --enable CONFIG_RT2800USB
-          ./scripts/config --enable CONFIG_RT2800USB_RT53XX
           ./scripts/config --enable CONFIG_RT2800USB_RT5572
           ./scripts/config --enable CONFIG_ATH9K_HTC
-          ./scripts/config --enable CONFIG_MAC80211_MESH
           
-          # Enable HID Attacks
-          ./scripts/config --enable CONFIG_USB_G_ANDROID
+          # Force HID
           ./scripts/config --enable CONFIG_USB_F_HID
           ./scripts/config --enable CONFIG_USB_CONFIGFS_F_HID
           
-          # Security Stripping
+          # Samsung Security Stripping
           ./scripts/config --disable CONFIG_SAMSUNG_TUI
           ./scripts/config --disable CONFIG_SECURITY_DEFENSE_SMAP
           
@@ -75,4 +76,4 @@ jobs:
         with:
           name: Full-NetHunter-Kernel
           path: NetHunter-Full-Arsenal-S10.zip
-          
+
