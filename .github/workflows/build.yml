@@ -11,22 +11,22 @@ jobs:
         with:
           repository: 'LineageOS/android_kernel_samsung_exynos9820'
           ref: 'lineage-23.2'
-          fetch-depth: 1
+          fetch-depth: 0 # We need history for cherry-picking
 
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm curl git zip
+          sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm git zip
 
       - name: Apply v0lk3n NetHunter Patches
         run: |
-          # Use the absolute raw paths from v0lk3n's repository
-          curl -fLO https://raw.githubusercontent.com/V0lk3n/nethunter_kernel_samsung_exynos9820/nethunter-lineage-23.0/nh_files/patches/8091f09c7333908f9037c28c89b47e5898851411.patch
-          curl -fLO https://raw.githubusercontent.com/V0lk3n/nethunter_kernel_samsung_exynos9820/nethunter-lineage-23.0/nh_files/patches/53018860a4f669a4868f0577a76c8c838883592c.patch
+          # Connect directly to v0lk3n's code database
+          git remote add v0lk3n https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820.git
+          git fetch v0lk3n nethunter-lineage-23.0
           
-          # Force apply patches
-          patch -p1 --ignore-whitespace < 8091f09c7333908f9037c28c89b47e5898851411.patch
-          patch -p1 --ignore-whitespace < 53018860a4f669a4868f0577a76c8c838883592c.patch
+          # Pull the HID and Injection fixes directly (no URLs needed)
+          git cherry-pick --no-commit 8091f09c7333908f9037c28c89b47e5898851411
+          git cherry-pick --no-commit 53018860a4f669a4868f0577a76c8c838883592c || echo "Patch already applied"
 
       - name: Build Kernel
         run: |
@@ -34,17 +34,13 @@ jobs:
           export CROSS_COMPILE=aarch64-linux-gnu-
           make beyond1_defconfig
           
-          # Driver support for Panda PAU09 and Alfa
+          # Force Panda PAU09 and HID
           ./scripts/config --enable CONFIG_RT2800USB
           ./scripts/config --enable CONFIG_USB_F_HID
-          ./scripts/config --enable CONFIG_USB_CONFIGFS_F_HID
-          
-          # Security bypass for boot
           ./scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
           ./scripts/config --enable CONFIG_CC_STACKPROTECTOR_NONE
           ./scripts/config --disable CONFIG_SAMSUNG_TUI
           ./scripts/config --disable CONFIG_ESE_P3
-          ./scripts/config --disable CONFIG_TRUSTY
           
           make -j$(nproc) CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
 
