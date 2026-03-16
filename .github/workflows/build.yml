@@ -11,22 +11,12 @@ jobs:
         with:
           repository: 'LineageOS/android_kernel_samsung_exynos9820'
           ref: 'lineage-23.2'
-          fetch-depth: 0 # We need history for cherry-picking
+          fetch-depth: 1
 
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm git zip
-
-      - name: Apply v0lk3n NetHunter Patches
-        run: |
-          # Connect directly to v0lk3n's code database
-          git remote add v0lk3n https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820.git
-          git fetch v0lk3n nethunter-lineage-23.0
-          
-          # Pull the HID and Injection fixes directly (no URLs needed)
-          git cherry-pick --no-commit 8091f09c7333908f9037c28c89b47e5898851411
-          git cherry-pick --no-commit 53018860a4f669a4868f0577a76c8c838883592c || echo "Patch already applied"
+          sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm curl git zip
 
       - name: Build Kernel
         run: |
@@ -34,9 +24,18 @@ jobs:
           export CROSS_COMPILE=aarch64-linux-gnu-
           make beyond1_defconfig
           
-          # Force Panda PAU09 and HID
+          # Force Enable Panda PAU09 (rt2800usb)
           ./scripts/config --enable CONFIG_RT2800USB
+          ./scripts/config --enable CONFIG_RT2X00
+          ./scripts/config --enable CONFIG_RT2X00_LIB_USB
+          ./scripts/config --enable CONFIG_RT2800_LIB
+          
+          # Enable HID Gadget Support
+          ./scripts/config --enable CONFIG_USB_G_ANDROID
           ./scripts/config --enable CONFIG_USB_F_HID
+          ./scripts/config --enable CONFIG_USB_CONFIGFS_F_HID
+          
+          # Samsung Security Bypass
           ./scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
           ./scripts/config --enable CONFIG_CC_STACKPROTECTOR_NONE
           ./scripts/config --disable CONFIG_SAMSUNG_TUI
