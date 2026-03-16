@@ -1,4 +1,4 @@
-)name: Build S10 NetHunter Kernel
+name: Build S10 NetHunter Kernel
 on:
   workflow_dispatch:
 
