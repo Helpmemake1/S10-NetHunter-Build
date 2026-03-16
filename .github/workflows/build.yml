@@ -13,30 +13,52 @@ jobs:
           ref: 'lineage-23.2'
           fetch-depth: 1
 
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm curl git zip
+
       - name: Apply v0lk3n NetHunter Patches
         run: |
-          curl -LO https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820/commit/8091f09c7333908f9037c28c89b47e5898851411.patch
-          curl -LO https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820/commit/53018860a4f669a4868f0577a76c8c838883592c.patch
+          # Downloading raw patches by appending .patch to the commit URL
+          curl -fLO https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820/commit/8091f09c7333908f9037c28c89b47e5898851411.patch
+          curl -fLO https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820/commit/53018860a4f669a4868f0577a76c8c838883592c.patch
+          
+          # Applying patches using the downloaded filenames
           patch -p1 --ignore-whitespace < 8091f09c7333908f9037c28c89b47e5898851411.patch
           patch -p1 --ignore-whitespace < 53018860a4f669a4868f0577a76c8c838883592c.patch
 
       - name: Build Kernel
         run: |
-          sudo apt-get update
-          sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           make beyond1_defconfig
+          
+          # NetHunter Driver Configuration
           ./scripts/config --enable CONFIG_RT2800USB
           ./scripts/config --enable CONFIG_USB_F_HID
           ./scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
           ./scripts/config --enable CONFIG_CC_STACKPROTECTOR_NONE
+          ./scripts/config --disable CONFIG_SAMSUNG_TUI
+          ./scripts/config --disable CONFIG_ESE_P3
+          
           make -j$(nproc) CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
 
-      - name: Upload Kernel
+      - name: Package with AnyKernel3
+        run: |
+          git clone https://github.com/osm0sis/AnyKernel3.git
+          cp arch/arm64/boot/Image.gz-dtb AnyKernel3/
+          cd AnyKernel3
+          # Set device specific info for S10 (beyond1lte)
+          sed -i 's/device.name1=/device.name1=beyond1lte/g' anykernel.sh
+          sed -i 's/device.name2=/device.name2=beyond1/g' anykernel.sh
+          sed -i 's|block=/dev/block/|block=/dev/block/by-name/boot|g' anykernel.sh
+          zip -r ../NetHunter-Kernel-S10-Flashable.zip *
+
+      - name: Upload Flashable Zip
         uses: actions/upload-artifact@v4
         with:
-          name: S10-Kernel
-          path: arch/arm64/boot/Image.gz-dtb
+          name: S10-NetHunter-ZIP
+          path: NetHunter-Kernel-S10-Flashable.zip
 
 
