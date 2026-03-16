@@ -1,40 +1,44 @@
-name: NetHunter Kernel Build
+name: Build S10 NetHunter Kernel
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Allows you to start it manually from the Actions tab
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source
+      - name: Checkout Kernel Source
         uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
 
-      - name: Set up Build Environment
+      - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison build-essential flex git libssl-dev libncurses5-dev zip gcc-aarch64-linux-gnu
+          sudo apt-get install -y bc build-essential libncurses5-dev libssl-dev bison flex libelf-dev clang lld llvm
 
-      - name: Build Kernel and Modules
+      - name: Apply V0lk3n Patches
+        run: |
+          curl -LO https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820/commit/8091f09c7333908f9037c28c89b47e5898851411.patch
+          curl -LO https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820/commit/53018860a4f669a4868f0577a76c8c838883592c.patch
+          patch -p1 < 8091f09c7333908f9037c28c89b47e5898851411.patch
+          patch -p1 < 53018860a4f669a4868f0577a76c8c838883592c.patch
+
+      - name: Build Kernel
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
-          # Try to find the config file first to ensure we are in the right spot
-          CONF=$(find . -name "nethunter_beyond1lte_defconfig")
-          if [ -z "$CONF" ]; then echo "Config not found!"; exit 1; fi
-          cd $(dirname $(dirname $(dirname $(dirname $CONF))))
-          make nethunter_beyond1lte_defconfig
-          make -j$(nproc)
+          make beyond1_defconfig
+          # Force NetHunter essentials
+          scripts/config --enable CONFIG_RT2800USB
+          scripts/config --enable CONFIG_USB_F_HID
+          scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
+          scripts/config --enable CONFIG_CC_STACKPROTECTOR_NONE
+          
+          make -j$(nproc) CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
 
-      - name: Prepare AnyKernel3
-        run: |
-          git clone https://github.com/osm0sis/AnyKernel3.git
-          find . -name "Image.gz-dtb" -exec cp {} AnyKernel3/ \;
-          mkdir -p AnyKernel3/modules
-          find . -name "*.ko" -exec cp {} AnyKernel3/modules/ \;
-          cp anykernel.sh AnyKernel3/anykernel.sh || touch AnyKernel3/anykernel.sh
-
-      - name: Export Artifact
+      - name: Upload Kernel Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NetHunter-Kernel-S10
-          path: NetHunter-Kernel-S10.zip
+          name: S10-NetHunter-Kernel
+          path: arch/arm64/boot/Image.gz-dtb
+          
