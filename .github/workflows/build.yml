@@ -1,44 +1,42 @@
 name: Build S10 NetHunter Kernel
 on:
-  workflow_dispatch: # Allows you to start it manually from the Actions tab
+  workflow_dispatch:
 
 jobs:
-  build:
+  build_kernel:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Kernel Source
+      - name: Checkout LineageOS 23.2
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
+          repository: 'LineageOS/android_kernel_samsung_exynos9820'
+          ref: 'lineage-23.2'
+          fetch-depth: 1
 
-      - name: Install Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y bc build-essential libncurses5-dev libssl-dev bison flex libelf-dev clang lld llvm
-
-      - name: Apply V0lk3n Patches
+      - name: Apply v0lk3n NetHunter Patches
         run: |
           curl -LO https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820/commit/8091f09c7333908f9037c28c89b47e5898851411.patch
           curl -LO https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820/commit/53018860a4f669a4868f0577a76c8c838883592c.patch
-          patch -p1 < 8091f09c7333908f9037c28c89b47e5898851411.patch
-          patch -p1 < 53018860a4f669a4868f0577a76c8c838883592c.patch
+          patch -p1 --ignore-whitespace < 8091f09c7333908f9037c28c89b47e5898851411.patch
+          patch -p1 --ignore-whitespace < 53018860a4f669a4868f0577a76c8c838883592c.patch
 
       - name: Build Kernel
         run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           make beyond1_defconfig
-          # Force NetHunter essentials
-          scripts/config --enable CONFIG_RT2800USB
-          scripts/config --enable CONFIG_USB_F_HID
-          scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
-          scripts/config --enable CONFIG_CC_STACKPROTECTOR_NONE
-          
+          ./scripts/config --enable CONFIG_RT2800USB
+          ./scripts/config --enable CONFIG_USB_F_HID
+          ./scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
+          ./scripts/config --enable CONFIG_CC_STACKPROTECTOR_NONE
           make -j$(nproc) CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
 
-      - name: Upload Kernel Artifact
+      - name: Upload Kernel
         uses: actions/upload-artifact@v4
         with:
-          name: S10-NetHunter-Kernel
+          name: S10-Kernel
           path: arch/arm64/boot/Image.gz-dtb
-          
+
+
