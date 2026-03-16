@@ -23,52 +23,53 @@ jobs:
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           
-          # Use the confirmed S10 config
           make exynos9820-beyond0lte_defconfig
           
-          # ENABLE PANDA PAU09 (RT2800USB)
-          ./scripts/config --enable CONFIG_RT2X00
-          ./scripts/config --enable CONFIG_RT2800USB
-          ./scripts/config --enable CONFIG_RT2800USB_RT5572
+          # --- PANDA PAU09 (RT2800USB) AS MODULES (STABLE) ---
+          ./scripts/config --module CONFIG_RT2X00
+          ./scripts/config --module CONFIG_RT2800USB
+          ./scripts/config --module CONFIG_RT2800USB_RT5572
+          ./scripts/config --module CONFIG_ATH9K_HTC
+          
+          # --- HID & WIRELESS STACK ---
           ./scripts/config --enable CONFIG_MAC80211
           ./scripts/config --enable CONFIG_CFG80211
-          
-          # HID ATTACK SUPPORT
           ./scripts/config --enable CONFIG_USB_F_HID
           ./scripts/config --enable CONFIG_USB_CONFIGFS_F_HID
           
-          # SECURITY BYPASS & COMPATIBILITY
+          # --- SECURITY BYPASS ---
           ./scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
           ./scripts/config --enable CONFIG_CC_STACKPROTECTOR_NONE
           ./scripts/config --disable CONFIG_SAMSUNG_TUI
           
-          # Fix for the "Wireless" abort we saw earlier
           make olddefconfig
 
-      - name: Build Kernel
+      - name: Build Kernel & Modules
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
-          # We add '|| true' to some steps inside the Makefile if needed, 
-          # but a clean build with the right config usually clears Error 2.
+          # Build kernel first
           make -j$(nproc) CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
+          # Build the Panda drivers as modules
+          make -j$(nproc) modules CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
 
       - name: Package with AnyKernel3
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git
-          if [ -f arch/arm64/boot/Image.gz-dtb ]; then
-            cp arch/arm64/boot/Image.gz-dtb AnyKernel3/
-          else
-            cp arch/arm64/boot/Image AnyKernel3/
-          fi
+          cp arch/arm64/boot/Image.gz-dtb AnyKernel3/ || cp arch/arm64/boot/Image AnyKernel3/
+          
+          # Include the Panda drivers in the ZIP
+          mkdir -p AnyKernel3/modules
+          find . -name "*.ko" -exec cp {} AnyKernel3/modules/ \;
+          
           cd AnyKernel3
           sed -i 's/device.name1=/device.name1=beyond1lte/g' anykernel.sh
           sed -i 's/device.name2=/device.name2=beyond1/g' anykernel.sh
-          zip -r ../NetHunter-S10-Kernel.zip *
+          zip -r ../S10-NetHunter-Kernel.zip *
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: S10-Kernel-Final
-          path: NetHunter-S10-Kernel.zip
+          name: S10-Safe-Kernel
+          path: S10-NetHunter-Kernel.zip
           
