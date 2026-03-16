@@ -23,41 +23,36 @@ jobs:
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           
-          # Initialize Config
-          make beyond1_defconfig
+          # Try to find the correct S10 config name automatically
+          if [ -f arch/arm64/configs/exynos9820_defconfig ]; then
+            CONF=exynos9820_defconfig
+          elif [ -f arch/arm64/configs/beyond_defconfig ]; then
+            CONF=beyond_defconfig
+          else
+            # Fallback to the first available samsung config
+            CONF=$(ls arch/arm64/configs/ | grep -i "samsung\|beyond\|exynos" | head -n 1)
+          fi
           
-          # ENABLE PANDA PAU09 (RT2800USB)
+          echo "Using configuration: $CONF"
+          make $CONF
+          
+          # Force Panda PAU09 (RT2800USB) and HID support
           ./scripts/config --enable CONFIG_RT2X00
           ./scripts/config --enable CONFIG_RT2800USB
-          ./scripts/config --enable CONFIG_RT2800USB_RT5572
-          ./scripts/config --enable CONFIG_RT2X00_LIB_USB
-          
-          # ENABLE ALFA ADAPTERS (ATH9K_HTC)
-          ./scripts/config --enable CONFIG_ATH_COMMON
-          ./scripts/config --enable CONFIG_ATH9K_HTC
-          
-          # ENABLE HID GADGET (Keyboard Attacks)
-          ./scripts/config --enable CONFIG_USB_G_ANDROID
           ./scripts/config --enable CONFIG_USB_F_HID
-          ./scripts/config --enable CONFIG_USB_CONFIGFS_F_HID
-          
-          # BYPASS SAMSUNG SECURITY
           ./scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
           ./scripts/config --enable CONFIG_CC_STACKPROTECTOR_NONE
           ./scripts/config --disable CONFIG_SAMSUNG_TUI
-          ./scripts/config --disable CONFIG_ESE_P3
           
-          # Build it
           make -j$(nproc) CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
 
       - name: Package with AnyKernel3
         run: |
           git clone https://github.com/osm0sis/AnyKernel3.git
-          cp arch/arm64/boot/Image.gz-dtb AnyKernel3/
+          cp arch/arm64/boot/Image.gz-dtb AnyKernel3/ || cp arch/arm64/boot/Image AnyKernel3/
           cd AnyKernel3
           sed -i 's/device.name1=/device.name1=beyond1lte/g' anykernel.sh
           sed -i 's/device.name2=/device.name2=beyond1/g' anykernel.sh
-          sed -i 's|block=/dev/block/|block=/dev/block/by-name/boot|g' anykernel.sh
           zip -r ../S10-NetHunter-Kernel.zip *
 
       - name: Upload Flashable Zip
