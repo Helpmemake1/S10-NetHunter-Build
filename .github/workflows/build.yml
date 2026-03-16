@@ -23,33 +23,34 @@ jobs:
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           
-          # Use the verified config name
+          # Use the confirmed S10 config
           make exynos9820-beyond0lte_defconfig
           
-          # Enable Panda PAU09 (RT2800USB) and Injection support
+          # ENABLE PANDA PAU09 (RT2800USB)
           ./scripts/config --enable CONFIG_RT2X00
           ./scripts/config --enable CONFIG_RT2800USB
           ./scripts/config --enable CONFIG_RT2800USB_RT5572
-          ./scripts/config --enable CONFIG_ATH9K_HTC
           ./scripts/config --enable CONFIG_MAC80211
           ./scripts/config --enable CONFIG_CFG80211
           
-          # Enable HID Attack Support
+          # HID ATTACK SUPPORT
           ./scripts/config --enable CONFIG_USB_F_HID
           ./scripts/config --enable CONFIG_USB_CONFIGFS_F_HID
           
-          # SECURITY BYPASS
+          # SECURITY BYPASS & COMPATIBILITY
           ./scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
           ./scripts/config --enable CONFIG_CC_STACKPROTECTOR_NONE
           ./scripts/config --disable CONFIG_SAMSUNG_TUI
-
-          # IMPORTANT: This line auto-accepts new questions like "Minstrel"
+          
+          # Fix for the "Wireless" abort we saw earlier
           make olddefconfig
 
       - name: Build Kernel
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
+          # We add '|| true' to some steps inside the Makefile if needed, 
+          # but a clean build with the right config usually clears Error 2.
           make -j$(nproc) CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
 
       - name: Package with AnyKernel3
@@ -68,6 +69,6 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: S10-Kernel-Build
+          name: S10-Kernel-Final
           path: NetHunter-S10-Kernel.zip
           
