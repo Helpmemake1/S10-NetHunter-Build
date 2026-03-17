@@ -18,20 +18,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm git zip gcc-aarch64-linux-gnu
 
-      - name: Configure & Final Seal
+      - name: Configure & Patch
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           
-          # 1. THE FINAL SEAL: Tell the drivers Makefile to skip NFC entirely
-          # This prevents the "built-in.o" error from 405830.png
-          sed -i 's/obj-$(CONFIG_NFC) += nfc\//# NFC Disabled/g' drivers/Makefile
+          # 1. Provide "Dummy" security functions to fix the TEEC error from 405831.png
+          echo 'int TEEC_InitializeContext() { return 0; }' >> drivers/nfc/ese_p3.c
+          echo 'int TEEC_OpenSession() { return 0; }' >> drivers/nfc/ese_p3.c
+          echo 'int TEEC_InvokeCommand() { return 0; }' >> drivers/nfc/ese_p3.c
+          echo 'int TEEC_CloseSession() { return 0; }' >> drivers/nfc/ese_p3.c
+          echo 'int TEEC_FinalizeContext() { return 0; }' >> drivers/nfc/ese_p3.c
 
           # 2. Load the S10 config
           make exynos9820-beyond0lte_defconfig
           
           # 3. DISABLE CONFLICTS
-          ./scripts/config --disable CONFIG_NFC
           ./scripts/config --disable CONFIG_TZDEV
           ./scripts/config --disable CONFIG_SAMSUNG_TUI
           ./scripts/config --disable CONFIG_ESE_P3
@@ -66,11 +68,11 @@ jobs:
           cd AnyKernel3
           sed -i 's/device.name1=/device.name1=beyond1lte/g' anykernel.sh
           sed -i 's/device.name2=/device.name2=beyond1/g' anykernel.sh
-          zip -r ../NetHunter-S10-Final.zip *
+          zip -r ../S10-NetHunter-Kernel.zip *
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: S10-NetHunter-Kernel
-          path: NetHunter-S10-Final.zip
+          path: S10-NetHunter-Kernel.zip
           
