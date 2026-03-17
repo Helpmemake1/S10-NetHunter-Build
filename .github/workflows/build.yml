@@ -23,10 +23,10 @@ jobs:
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           
-          # 1. Start with the verified S10 config
+          # 1. Load S10 config
           make exynos9820-beyond0lte_defconfig
           
-          # 2. DISABLE CONFLICTING SECURITY & NFC (Fix for 405822.png)
+          # 2. DISABLE CONFLICTS (Fix for 405823.png)
           ./scripts/config --disable CONFIG_TZDEV
           ./scripts/config --disable CONFIG_SAMSUNG_TUI
           ./scripts/config --disable CONFIG_SAMSUNG_TZ_DEPLOY_TZAR
@@ -47,7 +47,7 @@ jobs:
           ./scripts/config --enable CONFIG_USB_F_HID
           ./scripts/config --enable CONFIG_USB_CONFIGFS_F_HID
           
-          # 5. SECURITY BYPASS (Prevent Bootloops)
+          # 5. SECURITY BYPASS
           ./scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
           ./scripts/config --enable CONFIG_CC_STACKPROTECTOR_NONE
           
@@ -70,11 +70,11 @@ jobs:
           cd AnyKernel3
           sed -i 's/device.name1=/device.name1=beyond1lte/g' anykernel.sh
           sed -i 's/device.name2=/device.name2=beyond1/g' anykernel.sh
-          zip -r ../NetHunter-S10-Kernel.zip *
+          zip -r ../NetHunter-S10-Final.zip *
 
       - name: Upload Flashable Zip
         uses: actions/upload-artifact@v4
         with:
           name: S10-NetHunter-Kernel
-          path: NetHunter-S10-Kernel.zip
+          path: NetHunter-S10-Final.zip
           
