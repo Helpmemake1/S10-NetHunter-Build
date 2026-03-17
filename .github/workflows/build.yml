@@ -22,28 +22,56 @@ jobs:
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
-          make mrproper
           
-          # 1. THE NUKE: Skip the crashing Broadcom driver folder (Fix for Error 2)
+          # 1. Generate the base config first (Fixes 405894.png)
+          make exynos9820-beyond0lte_defconfig
+          
+          # 2. THE NUKE: Skip the crashing Broadcom driver folder
           sed -i 's/obj-$(CONFIG_BCMDHD) += broadcom\//# Broadcom Disabled/g' drivers/net/wireless/Makefile
           
-          # 2. Fix the Tzar/NFC security errors
+          # 3. Provide dummy functions for NFC/TEE linking
           echo 'int TEEC_InitializeContext() { return 0; }' >> drivers/nfc/ese_p3.c
           echo 'int TEEC_OpenSession() { return 0; }' >> drivers/nfc/ese_p3.c
           echo 'int TEEC_InvokeCommand() { return 0; }' >> drivers/nfc/ese_p3.c
 
-          make exynos9820-beyond0lte_defconfig
-          
-          # 3. ENABLE PANDA PAU09 & NETHUNTER POWER
+          # 4. ENABLE PANDA PAU09 & NETHUNTER POWER
           ./scripts/config --enable CONFIG_RT2X00
           ./scripts/config --enable CONFIG_RT2800USB
           ./scripts/config --enable CONFIG_RT2800USB_RT5572
           ./scripts/config --enable CONFIG_USB_F_HID
           ./scripts/config --enable CONFIG_USB_CONFIGFS_F_HID
           
-          # 4. DISABLE THE CRASHERS
+          # 5. DISABLE THE CRASHERS
           ./scripts/config --disable CONFIG_RC_CORE
           ./scripts/config --disable CONFIG_TZDEV
           ./scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
-          ./scripts/config
+          ./scripts/config --enable CONFIG_CC_STACKPROTECTOR_NONE
+          
+          # 6. Apply changes
+          make olddefconfig
+
+      - name: Build Kernel
+        run: |
+          export ARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          make -j$(nproc) CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
+
+      - name: Package AnyKernel3
+        run: |
+          git clone https://github.com/osm0sis/AnyKernel3.git
+          find arch/arm64/boot/ -type f -name "Image*" -exec cp {} AnyKernel3/ \;
+          cd AnyKernel3
+          # Check for real kernel size
+          if [ $(stat -c%s "Image" 2>/dev/null || stat -c%s "Image.gz" 2>/dev/null || echo 0) -lt 10000000 ]; then
+            echo "BUILD FAILED: IMAGE MISSING OR TOO SMALL"
+            exit 1
+          fi
+          sed -i 's/device.name1=/device.name1=beyond1lte/g' anykernel.sh
+          zip -r ../S10-NetHunter-Final.zip *
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: S10-NetHunter-Final
+          path: S10-NetHunter-Final.zip
           
