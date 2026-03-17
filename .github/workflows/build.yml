@@ -18,27 +18,24 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm git zip gcc-aarch64-linux-gnu
 
-      - name: Configure & Force Patch
+      - name: Configure & Neutralize NFC
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           
-          # 1. THE NUKE OPTION: Remove the broken NFC driver folder entirely
-          # This prevents the "TEEC" linking error from screenshot 405824.png
-          rm -rf drivers/nfc/
-          mkdir -p drivers/nfc/
-          echo "obj-y += dummy.o" > drivers/nfc/Makefile
-          echo "int main() { return 0; }" > drivers/nfc/dummy.c
+          # 1. NEUTRALIZE NFC: We keep the files so the config menu is happy, 
+          # but we empty the Makefile so the compiler ignores the bad code.
+          echo "obj-y :=" > drivers/nfc/Makefile
+          echo "obj-m :=" >> drivers/nfc/Makefile
 
           # 2. Load the S10 config
           make exynos9820-beyond0lte_defconfig
           
-          # 3. DISABLE CONFLICTS
+          # 3. DISABLE CONFLICTS (Stripping remaining triggers)
           ./scripts/config --disable CONFIG_TZDEV
           ./scripts/config --disable CONFIG_SAMSUNG_TUI
           ./scripts/config --disable CONFIG_ESE_P3
-          ./scripts/config --disable CONFIG_NFC_S3FWRN5
-          ./scripts/config --disable CONFIG_NFC_S3FWRN8
+          ./scripts/config --disable CONFIG_NFC
           
           # 4. ENABLE PANDA PAU09 & NETHUNTER
           ./scripts/config --enable CONFIG_RT2X00
