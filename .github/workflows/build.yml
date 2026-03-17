@@ -18,7 +18,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm git zip gcc-aarch64-linux-gnu
 
-      - name: Configure and Total Silence
+      - name: Configure and Surgery
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
@@ -26,10 +26,10 @@ jobs:
           # 1. Generate base config
           make exynos9820-beyond0lte_defconfig
           
-          # 2. THE TOTAL SILENCE: Target the exact crashing Broadcom folder
-          # This fixes the crash seen in 405905.png
-          sed -i 's/obj-$(CONFIG_BCMDHD_101_16) += bcmdhd_101_16\//# BCMDHD Disabled/g' drivers/net/wireless/broadcom/Makefile
-          sed -i 's/obj-$(CONFIG_BCMDHD) += broadcom\//# Broadcom Disabled/g' drivers/net/wireless/Makefile
+          # 2. SOURCE SURGERY: Hard-disable the Broadcom entry in the main networking Makefile
+          # This is the "kill switch" for the error at line 3278.
+          sed -i 's/^obj-$(CONFIG_BCMDHD)/# obj-$(CONFIG_BCMDHD)/g' drivers/net/wireless/Makefile
+          sed -i 's/^obj-$(CONFIG_BCM43)/# obj-$(CONFIG_BCM43)/g' drivers/net/wireless/Makefile
           
           # 3. Provide dummy functions for NFC/TEE linking
           echo 'int TEEC_InitializeContext() { return 0; }' >> drivers/nfc/ese_p3.c
@@ -57,6 +57,7 @@ jobs:
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
+          # Build it - this should now clear the 3200-line mark entirely.
           make -j$(nproc) CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
 
       - name: Package AnyKernel3
