@@ -18,32 +18,32 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm git zip gcc-aarch64-linux-gnu
 
-      - name: Configure & Patch Kernel
+      - name: Configure & Force Patch
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           
-          # 1. Load S10 config
+          # 1. THE NUKE OPTION: Remove the broken NFC driver folder entirely
+          # This prevents the "TEEC" linking error from screenshot 405824.png
+          rm -rf drivers/nfc/
+          mkdir -p drivers/nfc/
+          echo "obj-y += dummy.o" > drivers/nfc/Makefile
+          echo "int main() { return 0; }" > drivers/nfc/dummy.c
+
+          # 2. Load the S10 config
           make exynos9820-beyond0lte_defconfig
           
-          # 2. DISABLE CONFLICTS (Fix for 405823.png)
+          # 3. DISABLE CONFLICTS
           ./scripts/config --disable CONFIG_TZDEV
           ./scripts/config --disable CONFIG_SAMSUNG_TUI
-          ./scripts/config --disable CONFIG_SAMSUNG_TZ_DEPLOY_TZAR
           ./scripts/config --disable CONFIG_ESE_P3
           ./scripts/config --disable CONFIG_NFC_S3FWRN5
           ./scripts/config --disable CONFIG_NFC_S3FWRN8
-          ./scripts/config --disable CONFIG_TRUSTY
           
-          # 3. ENABLE PANDA PAU09 (RT2800USB) & INJECTION
+          # 4. ENABLE PANDA PAU09 & NETHUNTER
           ./scripts/config --enable CONFIG_RT2X00
           ./scripts/config --enable CONFIG_RT2800USB
           ./scripts/config --enable CONFIG_RT2800USB_RT5572
-          ./scripts/config --enable CONFIG_ATH9K_HTC
-          ./scripts/config --enable CONFIG_MAC80211
-          ./scripts/config --enable CONFIG_CFG80211
-          
-          # 4. ENABLE HID ATTACKS (Keyboard/Mouse)
           ./scripts/config --enable CONFIG_USB_F_HID
           ./scripts/config --enable CONFIG_USB_CONFIGFS_F_HID
           
@@ -70,11 +70,11 @@ jobs:
           cd AnyKernel3
           sed -i 's/device.name1=/device.name1=beyond1lte/g' anykernel.sh
           sed -i 's/device.name2=/device.name2=beyond1/g' anykernel.sh
-          zip -r ../NetHunter-S10-Final.zip *
+          zip -r ../NetHunter-S10-Ready.zip *
 
-      - name: Upload Flashable Zip
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: S10-NetHunter-Kernel
-          path: NetHunter-S10-Final.zip
+          path: NetHunter-S10-Ready.zip
           
