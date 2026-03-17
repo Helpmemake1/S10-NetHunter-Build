@@ -18,17 +18,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm git zip gcc-aarch64-linux-gnu
 
-      - name: Configure and Hard-Disable Broadcom
+      - name: Configure and Neutralize Broadcom
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           
-          # 1. Generate base config
+          # 1. Generate the base config
           make exynos9820-beyond0lte_defconfig
           
-          # 2. THE HARD DISABLE: Rename the folder so the compiler can't find it
-          # This fixes the crash seen in 405902.png
-          mv drivers/net/wireless/broadcom drivers/net/wireless/broadcom_backup
+          # 2. THE CLEAN CUT: Instead of moving the folder, we empty the Makefile.
+          # This keeps the Kconfig happy but stops the code from compiling.
+          find drivers/net/wireless/broadcom -name "Makefile" -exec sh -c 'echo "obj-y :=" > {}' \;
           
           # 3. Provide dummy functions for NFC/TEE linking
           echo 'int TEEC_InitializeContext() { return 0; }' >> drivers/nfc/ese_p3.c
@@ -43,7 +43,6 @@ jobs:
           ./scripts/config --enable CONFIG_USB_CONFIGFS_F_HID
           
           # 5. DISABLE THE CRASHERS
-          ./scripts/config --disable CONFIG_BCMDHD
           ./scripts/config --disable CONFIG_RC_CORE
           ./scripts/config --disable CONFIG_TZDEV
           ./scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
@@ -75,4 +74,4 @@ jobs:
         with:
           name: S10-NetHunter-Final
           path: S10-NetHunter-Final.zip
-
+          
