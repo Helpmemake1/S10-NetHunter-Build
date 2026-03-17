@@ -18,24 +18,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm git zip gcc-aarch64-linux-gnu
 
-      - name: Configure & Neutralize NFC
+      - name: Configure & Final Seal
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           
-          # 1. NEUTRALIZE NFC: We keep the files so the config menu is happy, 
-          # but we empty the Makefile so the compiler ignores the bad code.
-          echo "obj-y :=" > drivers/nfc/Makefile
-          echo "obj-m :=" >> drivers/nfc/Makefile
+          # 1. THE FINAL SEAL: Tell the drivers Makefile to skip NFC entirely
+          # This prevents the "built-in.o" error from 405830.png
+          sed -i 's/obj-$(CONFIG_NFC) += nfc\//# NFC Disabled/g' drivers/Makefile
 
           # 2. Load the S10 config
           make exynos9820-beyond0lte_defconfig
           
-          # 3. DISABLE CONFLICTS (Stripping remaining triggers)
+          # 3. DISABLE CONFLICTS
+          ./scripts/config --disable CONFIG_NFC
           ./scripts/config --disable CONFIG_TZDEV
           ./scripts/config --disable CONFIG_SAMSUNG_TUI
           ./scripts/config --disable CONFIG_ESE_P3
-          ./scripts/config --disable CONFIG_NFC
           
           # 4. ENABLE PANDA PAU09 & NETHUNTER
           ./scripts/config --enable CONFIG_RT2X00
@@ -67,11 +66,11 @@ jobs:
           cd AnyKernel3
           sed -i 's/device.name1=/device.name1=beyond1lte/g' anykernel.sh
           sed -i 's/device.name2=/device.name2=beyond1/g' anykernel.sh
-          zip -r ../NetHunter-S10-Ready.zip *
+          zip -r ../NetHunter-S10-Final.zip *
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: S10-NetHunter-Kernel
-          path: NetHunter-S10-Ready.zip
+          path: NetHunter-S10-Final.zip
           
