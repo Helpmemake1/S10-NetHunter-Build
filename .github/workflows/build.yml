@@ -18,34 +18,63 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison flex libssl-dev libelf-dev clang lld llvm git zip gcc-aarch64-linux-gnu
 
-      - name: Configure & Patch
+      - name: Configure and Clean
         run: |
           export ARCH=arm64
           export CROSS_COMPILE=aarch64-linux-gnu-
           
-          # Fix Security/NFC Linker issues
+          # Force a deep clean to prevent the 1-minute skip
+          make clean
+          make mrproper
+          
+          # Load the S10 config
+          make exynos9820-beyond0lte_defconfig
+          
+          # Fix the Tzar/NFC security errors
           echo 'int TEEC_InitializeContext() { return 0; }' >> drivers/nfc/ese_p3.c
           echo 'int TEEC_OpenSession() { return 0; }' >> drivers/nfc/ese_p3.c
           echo 'int TEEC_InvokeCommand() { return 0; }' >> drivers/nfc/ese_p3.c
-          echo 'int TEEC_CloseSession() { return 0; }' >> drivers/nfc/ese_p3.c
-          echo 'int TEEC_FinalizeContext() { return 0; }' >> drivers/nfc/ese_p3.c
-
-          make exynos9820-beyond0lte_defconfig
           
-          # --- DISABLE CRASHING COMPONENTS (Fix for 405872.png) ---
+          # Disable crashing components
           ./scripts/config --disable CONFIG_RC_CORE
-          ./scripts/config --disable CONFIG_MEDIA_RC_SUPPORT
           ./scripts/config --disable CONFIG_TZDEV
           ./scripts/config --disable CONFIG_SAMSUNG_TUI
           
-          # --- ENABLE PANDA PAU09 & NETHUNTER ---
+          # Enable Panda PAU09 & HID Attacks
           ./scripts/config --enable CONFIG_RT2X00
           ./scripts/config --enable CONFIG_RT2800USB
           ./scripts/config --enable CONFIG_RT2800USB_RT5572
           ./scripts/config --enable CONFIG_USB_F_HID
-          ./scripts/config --enable CONFIG_USB_CONFIGFS_F_HID
           
-          # --- SECURITY STRIPPING ---
+          # Security Bypass
           ./scripts/config --disable CONFIG_CC_STACKPROTECTOR_STRONG
-          ./scripts/config --enable CONFIG
+          ./scripts/config --enable CONFIG_CC_STACKPROTECTOR_NONE
+          
+          make olddefconfig
+
+      - name: Build Kernel (Real Run)
+        run: |
+          export ARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          # This should now take 25+ minutes
+          make -j$(nproc) CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
+
+      - name: Package AnyKernel3
+        run: |
+          git clone https://github.com/osm0sis/AnyKernel3.git
+          # Check for image and zip it
+          if [ -f arch/arm64/boot/Image.gz-dtb ]; then
+            cp arch/arm64/boot/Image.gz-dtb AnyKernel3/
+          else
+            cp arch/arm64/boot/Image AnyKernel3/
+          fi
+          cd AnyKernel3
+          sed -i 's/device.name1=/device.name1=beyond1lte/g' anykernel.sh
+          zip -r ../NetHunter-S10-Final.zip *
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: S10-NetHunter-Final
+          path: NetHunter-S10-Final.zip
           
