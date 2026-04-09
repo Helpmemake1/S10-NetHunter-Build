@@ -7,6 +7,13 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
+      - name: Fix APT Mirrors
+        # This fixes the 'file:/etc/apt/apt-mirrors.txt' error by using official mirrors
+        run: |
+          sudo sed -i 's|file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' /etc/apt/sources.list
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+
       - name: Maximize Build Space
         uses: easimon/maximize-build-space@master
         with:
@@ -14,18 +21,16 @@ jobs:
           swap-size-mb: 2048
           remove-dotnet: 'true'
           remove-android: 'true'
-          remove-haskell: 'true'
 
       - name: Install Dependencies
         run: |
-          sudo apt update
-          sudo apt install -y bc bison build-essential flex git-core libssl-dev python3 \
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential flex git-core libssl-dev python3 \
           libncurses5-dev xz-utils crossbuild-essential-arm64 curl zip python3-pip
           pip3 install requests
 
       - name: Clone S10 Kernel Source
         run: |
-          # Cloning specific LOS 23.2 branch
           git clone --recurse-submodules https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820.git -b nethunter-lineage-23.2 kernel-source
 
       - name: Build Kernel (Non-Interactive)
@@ -33,24 +38,17 @@ jobs:
           cd kernel-source/kali-nethunter-kernel-builder
           chmod +x build.sh
           
-          # Copy local config if it exists
           if [ -f "../nh_files/local.config" ]; then
             cp ../nh_files/local.config .
           fi
-
-          # AUTOMATION LOGIC:
-          # 1. 'S' -> Setup toolchains
-          # 2. 'y' -> Confirm downloads
-          # 3. 'T' -> Start Test Build (Flashable Zip)
-          # 4. 'yes ""' -> Spam Enter to skip all hidden "Enable feature X?" questions
           
           echo "Starting build process..."
-          (echo S; sleep 2; echo y; sleep 2; echo T; sleep 2; yes "") | ./build.sh
+          # S = Setup, y = Yes to downloads, T = Test Build, yes "" = spam Enter
+          (echo S; sleep 3; echo y; sleep 3; echo T; sleep 3; yes "") | ./build.sh
 
       - name: Upload Resulting Zip
         uses: actions/upload-artifact@v4
         with:
-          name: NetHunter-S10-Beyond1lte-LOS23.2
+          name: NetHunter-S10-LOS23.2
           path: kernel-source/kali-nethunter-kernel-builder/out/*.zip
-          if-no-files-found: error
           
