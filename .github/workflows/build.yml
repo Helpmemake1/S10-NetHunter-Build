@@ -1,11 +1,11 @@
-name: Build NetHunter Kernel S10 (LOS 23.2)
+name: Build NetHunter S10 LOS 23.2
 
 on:
-  workflow_dispatch: # Allows you to start the build manually
+  workflow_dispatch: # Allows you to trigger the build manually
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Maximize Build Space
         uses: easimon/maximize-build-space@master
@@ -14,28 +14,36 @@ jobs:
           swap-size-mb: 1024
           remove-dotnet: 'true'
           remove-android: 'true'
+          remove-haskell: 'true'
 
-      - name: Install Dependencies
+      - name: Install Build Dependencies
         run: |
           sudo apt update
-          sudo apt install -y bc bison build-essential flex git-core libssl-dev python3 libncurses5-dev xz-utils crossbuild-essential-arm64
+          sudo apt install -y bc bison build-essential flex git-core libssl-dev python3 \
+          libncurses5-dev xz-utils crossbuild-essential-arm64 curl zip
 
       - name: Clone Kernel Source
         run: |
+          # Cloning the specific LOS 23.2 branch for S10
           git clone --recurse-submodules https://github.com/V0lk3n/nethunter_kernel_samsung_exynos9820.git -b nethunter-lineage-23.2 kernel-source
 
-      - name: Build Kernel
+      - name: Build Kernel (Automated)
         run: |
           cd kernel-source/kali-nethunter-kernel-builder
+          
+          # 1. Setup Config
           cp ../nh_files/local.config .
-          # Ensure the script is executable
           chmod +x build.sh
-          # Start build
-          ./build.sh
+          
+          # 2. Automate the Menu
+          # We send 'S' to setup toolchains, then 'T' for a Test Build (Flashable Zip)
+          # 'printf' handles the interactive menu you saw in your screenshot.
+          printf "S\nT\n" | ./build.sh
 
       - name: Upload Flashable Zip
         uses: actions/upload-artifact@v4
         with:
-          name: NetHunter-S10-LOS23.2
+          name: NetHunter-S10-Beyond1lte-LOS23.2
+          # The script outputs the zip into the 'out' folder
           path: kernel-source/kali-nethunter-kernel-builder/out/*.zip
           
